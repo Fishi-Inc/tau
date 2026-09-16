@@ -29,7 +29,7 @@ import {
 
 export type EditorHooks = {
   onChange: (content: string) => void;
-  onCursor: (line: number, character: number) => void;
+  onCursor: (line: number, character: number, zeile: string) => void;
   onSave: () => void;
   onPasteImage: (file: File) => Promise<string | null>; // gibt den einzufügenden Text zurück
   onQuickOpen: () => void;
@@ -165,7 +165,7 @@ export function createEditor(parent: HTMLElement, hooks: EditorHooks): EditorVie
           if ((u.selectionSet || u.docChanged) && !suppressCursor) {
             const pos = u.state.selection.main.head;
             const line = u.state.doc.lineAt(pos);
-            hooks.onCursor(line.number - 1, pos - line.from);
+            hooks.onCursor(line.number - 1, pos - line.from, line.text);
           }
         }),
       ],

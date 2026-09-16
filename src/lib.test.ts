@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseHost, samePath, parseOutline, pruefeDateiname } from "./lib";
+import { parseHost, samePath, parseOutline, pruefeDateiname, zielSpalte } from "./lib";
 
 test("parseHost liest die Adressen aus den Startmeldungen", () => {
   const data =
@@ -72,4 +72,20 @@ test("pruefeDateiname nimmt eine vorgegebene Endung", () => {
   expect(pruefeDateiname("quellen", ".bib")).toEqual({ name: "quellen.bib" });
   // eine getippte Endung sticht die Vorgabe
   expect(pruefeDateiname("quellen.typ", ".bib")).toEqual({ name: "quellen.typ" });
+});
+
+test("zielSpalte zielt hinter den Marker der Zeile", () => {
+  // Überschriften: die Vorschau springt erst hinter den "="-Marker.
+  expect(zielSpalte("= Zwei", 0)).toBe(3);
+  expect(zielSpalte("= Zwei", 2)).toBe(3);
+  expect(zielSpalte("== Zweiter Abschnitt", 0)).toBe(4);
+  // Weiter hinten im Text bleibt die Stelle erhalten (eine Spalte weiter).
+  expect(zielSpalte("= Zwei", 4)).toBe(5);
+  // Am Zeilenende nicht darüber hinaus.
+  expect(zielSpalte("= Zwei", 6)).toBe(6);
+  // Gewöhnlicher Text: Spalte 0 trifft noch nichts.
+  expect(zielSpalte("Text a", 0)).toBe(1);
+  expect(zielSpalte("  eingerückt", 0)).toBe(3);
+  expect(zielSpalte("- Listenpunkt", 0)).toBe(3);
+  expect(zielSpalte("", 0)).toBe(0);
 });
