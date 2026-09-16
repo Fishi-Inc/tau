@@ -10,9 +10,9 @@
     <div id="app">
       <aside id="sidebar">
         <div class="side-head">
-          <button id="open-folder" title="Ordner öffnen">Ordner</button>
+          <button id="open-folder" title="Projekt öffnen">Projekt</button>
           <button id="new-file" title="Neue Datei anlegen (.typ, .bib …)">Neu</button>
-          <button id="add-asset" title="Bilder in den Ordner assets/ aufnehmen">Bild</button>
+          <button id="add-asset" title="Bilder in den Ordner assets/ des Projekts aufnehmen">Bild</button>
         </div>
         <div id="tree" class="side-scroll"></div>
         <div class="side-split">Gliederung</div>
@@ -32,6 +32,8 @@
             <dt>Strg+N</dt><dd>Datei erstellen</dd>
             <dt>Strg+Shift+P</dt><dd>alle Befehle</dd>
           </dl>
+          <!-- Die zuletzt geöffneten Projekte; der Inhalt entsteht zur Laufzeit. -->
+          <div id="letzte"></div>
         </div>
         <div id="status"></div>
       </main>
@@ -57,6 +59,14 @@
       <div class="palette-box">
         <input id="frage-input" autocomplete="off" spellcheck="false" />
         <div id="frage-hinweis"></div>
+      </div>
+    </div>
+
+    <div id="hinweis" hidden>
+      <div class="palette-box hinweis-box">
+        <h2 id="hinweis-titel"></h2>
+        <p id="hinweis-text"></p>
+        <button id="hinweis-ok">Verstanden</button>
       </div>
     </div>
 

@@ -14,7 +14,7 @@ import {
 } from "./preview";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { sichereAlle, ordnerFuer, wurzel, ABSTAND_MS } from "./versions";
+import { sichereAlle, ordnerFuer, wurzel, ANZAHL_STAENDE, ABSTAND_MS } from "./versions";
 import {
   state,
   activeTab,
@@ -29,6 +29,7 @@ import {
   type Tab,
 } from "./state";
 import { samePath, parseOutline, pruefeDateiname } from "./lib";
+import { letzteProjekte, merke, vergiss } from "./projekte";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const el = {
@@ -47,6 +48,11 @@ const el = {
   palette: $("palette"),
   paletteInput: $<HTMLInputElement>("palette-input"),
   paletteList: $<HTMLUListElement>("palette-list"),
+  hinweis: $("hinweis"),
+  hinweisTitel: $("hinweis-titel"),
+  hinweisText: $("hinweis-text"),
+  hinweisOk: $<HTMLButtonElement>("hinweis-ok"),
+  letzte: $("letzte"),
 };
 
 let tree: Node[] = [];
@@ -174,19 +180,40 @@ function syncPreview() {
 
 // ---------- Dateien und Tabs ----------
 
-async function openFolder() {
-  const picked = await open({ directory: true, multiple: false });
+/** Ein Projekt ist der Ordner, in dem das Dokument liegt. */
+async function projektWaehlen() {
+  const picked = await open({ directory: true, multiple: false, title: "Projekt öffnen" });
   if (typeof picked !== "string") return;
-  await useFolder(picked);
+  await oeffneProjekt(picked);
 }
 
-/** Ordner laden und merken, damit er beim nächsten Start gleich wieder dasteht. */
-async function useFolder(path: string) {
+/**
+ * Projekt laden und in der Liste der zuletzt geöffneten nach vorn stellen —
+ * das oberste wird beim nächsten Start wieder geöffnet.
+ */
+async function oeffneProjekt(path: string) {
+  // Ein verschobenes oder gelöschtes Projekt gäbe sonst nur einen leeren Baum.
+  if (!(await exists(path))) {
+    vergiss(path);
+    status = `${basename(path)} gibt es nicht mehr`;
+    renderLetzte();
+    renderStatus();
+    return;
+  }
   state.root = path;
   tree = await loadTree(path);
   files = flatten(tree);
+  merke(path);
   renderTreeUI();
-  localStorage.setItem("tau.root", path);
+  renderLetzte();
+}
+
+/** Baum neu einlesen, ohne an der Liste der Projekte zu rühren. */
+async function leseNeuEin() {
+  if (!state.root) return;
+  tree = await loadTree(state.root);
+  files = flatten(tree);
+  renderTreeUI();
 }
 
 async function openFile(path: string) {
@@ -320,6 +347,32 @@ async function exportPdf() {
 
 // ---------- Neue Dateien und Bilder ----------
 
+/**
+ * Meldung im Fenster, in der Aufmachung der App. Absichtlich kein
+ * `alert()`: das zeigt unter Windows einen fremden Kasten mit dem Namen der
+ * Anwendung darin, und die Texte dort klingen nach Fehlerprotokoll.
+ */
+function hinweis(titel: string, text: string) {
+  el.hinweisTitel.textContent = titel;
+  el.hinweisText.textContent = text;
+  el.hinweis.hidden = false;
+  el.hinweisOk.focus();
+
+  const schliessen = () => {
+    el.hinweis.hidden = true;
+    el.hinweis.onkeydown = null;
+    el.hinweis.onmousedown = null;
+    view.focus();
+  };
+  el.hinweisOk.onclick = schliessen;
+  el.hinweis.onkeydown = (e) => {
+    if (e.key === "Escape" || e.key === "Enter") schliessen();
+  };
+  el.hinweis.onmousedown = (e) => {
+    if (e.target === el.hinweis) schliessen();
+  };
+}
+
 /** Kleines Eingabefeld über dem Fenster. Antwortet mit null bei Abbruch. */
 function frage(titel: string, vorgabe = ""): Promise<string | null> {
   el.frage.hidden = false;
@@ -349,7 +402,7 @@ function frage(titel: string, vorgabe = ""): Promise<string | null> {
 
 /** Legt eine leere Datei im Wurzelordner an und öffnet sie. */
 async function neueDatei(endung = ".typ") {
-  if (!state.root) return void (status = "erst einen Ordner öffnen"), renderStatus();
+  if (!state.root) return void (status = "erst ein Projekt öffnen"), renderStatus();
   const eingabe = await frage(
     endung === ".bib" ? "Name der Literaturdatei, z. B. quellen" : "Name der neuen Datei, z. B. kapitel",
   );
@@ -369,7 +422,7 @@ async function neueDatei(endung = ".typ") {
     return renderStatus();
   }
   await writeTextFile(ziel, "");
-  await useFolder(state.root); // Baum neu einlesen
+  await leseNeuEin();
   await openFile(ziel);
   status = `${geprueft.name} angelegt`;
   renderStatus();
@@ -414,7 +467,7 @@ async function bildAufnehmen() {
       selection: { anchor: at.from + text.length },
     });
   }
-  await useFolder(state.root);
+  await leseNeuEin();
   status = `${verweise.length} Bild${verweise.length > 1 ? "er" : ""} aufgenommen`;
   renderStatus();
 }
@@ -437,11 +490,30 @@ setInterval(async () => {
 /** Den Ordner mit den Ständen der offenen Datei im Explorer zeigen. */
 async function zeigeStaende() {
   const t = activeTab();
-  await openPath(t && !t.bild ? await ordnerFuer(t.path) : await wurzel()).catch(async (e) => {
-    // Noch kein Stand abgelegt: dann gibt es den Ordner schlicht nicht.
-    console.warn("Ordner nicht vorhanden:", e);
-    status = "noch keine Sicherung vorhanden";
-    renderStatus();
+  const ordner = t && !t.bild ? ordnerFuer(t.path) : state.root ? wurzel(state.root) : null;
+  if (!ordner)
+    return hinweis(
+      "Noch keine Versionen",
+      "Öffne zuerst ein Projekt oder eine Datei. tau legt dann alle zehn Minuten " +
+        "eine Sicherung an, solange du etwas änderst.",
+    );
+
+  // Erst nachsehen, dann öffnen: sonst meldet Windows selbst, dass der Ordner
+  // fehlt — in einem Fenster, das mit der App nichts zu tun hat.
+  if (!(await exists(ordner)))
+    return hinweis(
+      "Noch keine Versionen",
+      `Von „${t && !t.bild ? t.name : basename(state.root!)}“ gibt es bisher keine ` +
+        `gespeicherte Version.\n\ntau legt alle zehn Minuten eine an, sobald du etwas ` +
+        `geändert hast, und bewahrt die letzten ${ANZAHL_STAENDE} auf.`,
+    );
+
+  await openPath(ordner).catch((e) => {
+    console.warn("Ordner nicht zu öffnen:", e);
+    hinweis(
+      "Ordner lässt sich nicht öffnen",
+      `Die Versionen liegen in:\n${ordner}\n\nDu kannst den Ordner auch von Hand öffnen.`,
+    );
   });
 }
 
@@ -534,6 +606,27 @@ function renderOutline() {
   );
 }
 
+/**
+ * Ohne offene Datei steht im Fenster, wo man weitermacht: die zuletzt
+ * geöffneten Projekte, wie in jedem anderen Editor auch.
+ */
+function renderLetzte() {
+  const liste = letzteProjekte().filter((p) => p !== state.root);
+  el.letzte.replaceChildren();
+  if (!liste.length) return;
+  const titel = document.createElement("p");
+  titel.className = "letzte-titel";
+  titel.textContent = "Zuletzt geöffnet";
+  el.letzte.append(titel);
+  for (const p of liste.slice(0, 5)) {
+    const b = document.createElement("button");
+    b.textContent = basename(p);
+    b.title = p;
+    b.onclick = () => oeffneProjekt(p);
+    el.letzte.append(b);
+  }
+}
+
 function renderStatus() {
   const t = activeTab();
   el.status.replaceChildren();
@@ -572,21 +665,29 @@ const befehle = (): Eintrag[] => [
   { titel: "Neue Datei anlegen", zusatz: "Strg+N", tun: () => neueDatei() },
   { titel: "Neue Literaturdatei anlegen", zusatz: ".bib", tun: () => neueDatei(".bib") },
   { titel: "Bilder aufnehmen", zusatz: "nach assets/", tun: bildAufnehmen },
-  { titel: "Ordner öffnen", tun: openFolder },
+  { titel: "Projekt öffnen", tun: projektWaehlen },
+  {
+    titel: "Zuletzt geöffnete Projekte",
+    zusatz: `${letzteProjekte().length}`,
+    tun: () => setTimeout(() => openPalette("projekte"), 0),
+  },
   { titel: "Datei suchen", zusatz: "Strg+P", tun: () => setTimeout(() => openPalette("dateien"), 0) },
   { titel: "Versionen dieser Datei zeigen", tun: zeigeStaende },
   { titel: "Als PDF ausgeben", tun: exportPdf },
 ];
 
-let paletteSel = 0;
-let paletteModus: "dateien" | "befehle" = "dateien";
+type Modus = "dateien" | "befehle" | "projekte";
 
-function openPalette(modus: "dateien" | "befehle" = "dateien") {
+let paletteSel = 0;
+let paletteModus: Modus = "dateien";
+
+function openPalette(modus: Modus = "dateien") {
   if (modus === "dateien" && !files.length) return;
   paletteModus = modus;
   el.palette.hidden = false;
   el.paletteInput.value = "";
-  el.paletteInput.placeholder = modus === "dateien" ? "Datei suchen…" : "Befehl…";
+  el.paletteInput.placeholder =
+    modus === "dateien" ? "Datei suchen…" : modus === "projekte" ? "Projekt…" : "Befehl…";
   paletteSel = 0;
   fillPalette();
   el.paletteInput.focus();
@@ -602,6 +703,11 @@ function matches(): Eintrag[] {
   const q = el.paletteInput.value.toLowerCase().trim();
   if (paletteModus === "befehle") {
     return befehle().filter((b) => !q || b.titel.toLowerCase().includes(q));
+  }
+  if (paletteModus === "projekte") {
+    return letzteProjekte()
+      .filter((p) => !q || p.toLowerCase().includes(q))
+      .map((p) => ({ titel: basename(p), zusatz: dirname(p), tun: () => oeffneProjekt(p) }));
   }
   const liste = q ? files.filter((f) => f.path.toLowerCase().includes(q)) : files;
   return liste.slice(0, 50).map((f) => ({
@@ -714,7 +820,7 @@ const view = createEditor(el.editor, {
   onQuickOpen: openPalette,
 });
 
-$("open-folder").onclick = openFolder;
+$("open-folder").onclick = projektWaehlen;
 $("new-file").onclick = () => neueDatei();
 $("add-asset").onclick = bildAufnehmen;
 
@@ -739,6 +845,15 @@ window.addEventListener("keydown", (e) => {
 zeigeAnsicht(null);
 renderStatus();
 
-// Zuletzt geöffneten Ordner wiederherstellen.
-const last = localStorage.getItem("tau.root");
-if (last) useFolder(last).catch(() => localStorage.removeItem("tau.root"));
+// Frühere Fassungen merkten sich nur den einen Ordner — der zählt als erstes
+// Projekt. ponytail: kann raus, sobald niemand mehr von dort aktualisiert.
+const frueher = localStorage.getItem("tau.root");
+if (frueher) {
+  if (!letzteProjekte().length) merke(frueher);
+  localStorage.removeItem("tau.root");
+}
+
+renderLetzte();
+// Das zuletzt geöffnete Projekt kommt beim Start von selbst wieder.
+const [zuletzt] = letzteProjekte();
+if (zuletzt) oeffneProjekt(zuletzt).catch((e) => console.warn("Projekt:", e));

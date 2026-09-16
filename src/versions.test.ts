@@ -1,49 +1,48 @@
 import { expect, test } from "bun:test";
-import { veraltete, ordnerName, zeitstempel } from "./versions";
+import { veraltete, naechsteNummer, nummer, ordnerFuer, wurzel } from "./versions";
 import { istTemplate, istBild, istTypst } from "./state";
 
 test("veraltete behält die fünf jüngsten Stände", () => {
-  // Namen beginnen mit dem Zeitstempel, alphabetisch = chronologisch
-  const staende = [
-    "2026-09-15_10-00-00.typ",
-    "2026-09-15_10-10-00.typ",
-    "2026-09-15_10-20-00.typ",
-    "2026-09-15_10-30-00.typ",
-    "2026-09-15_10-40-00.typ",
-  ];
+  const staende = ["Version 1.typ", "Version 2.typ", "Version 3.typ", "Version 4.typ", "Version 5.typ"];
   // genau fünf: nichts fliegt raus
   expect(veraltete(staende)).toEqual([]);
   // weniger als fünf: auch nicht
   expect(veraltete(staende.slice(0, 3))).toEqual([]);
 
   // sechster Stand kommt dazu -> der älteste muss weg
-  expect(veraltete([...staende, "2026-09-15_10-50-00.typ"])).toEqual(["2026-09-15_10-00-00.typ"]);
+  expect(veraltete([...staende, "Version 6.typ"])).toEqual(["Version 1.typ"]);
 
   // Reihenfolge der Eingabe darf egal sein
-  expect(veraltete([...staende].reverse().concat("2026-09-15_10-50-00.typ"))).toEqual([
-    "2026-09-15_10-00-00.typ",
-  ]);
+  expect(veraltete([...staende].reverse().concat("Version 6.typ"))).toEqual(["Version 1.typ"]);
 
-  // grosser Rückstand: es bleiben genau fünf übrig
-  const viele = Array.from({ length: 12 }, (_, i) => `2026-09-15_10-${String(i).padStart(2, "0")}-00.typ`);
+  // zweistellig: verglichen wird als Zahl, nicht als Text
+  const viele = Array.from({ length: 12 }, (_, i) => `Version ${i + 1}.typ`);
   expect(veraltete(viele)).toHaveLength(7);
-  expect(veraltete(viele)).not.toContain("2026-09-15_10-11-00.typ");
+  expect(veraltete(viele)).toEqual(expect.arrayContaining(["Version 1.typ", "Version 7.typ"]));
+  expect(veraltete(viele)).not.toContain("Version 8.typ");
+  expect(veraltete(viele)).not.toContain("Version 12.typ");
+
+  // Fremdes im Ordner wird nicht angefasst
+  expect(veraltete([...staende, "Version 6.typ", "notizen.txt"])).toEqual(["Version 1.typ"]);
 });
 
-test("ordnerName macht aus einem Pfad einen zulässigen Ordnernamen", () => {
-  // Laufwerksdoppelpunkt und Trennzeichen werden beide ersetzt, daher "D--"
-  expect(ordnerName("D:\\Code\\tau\\main.typ")).toBe("D--Code-tau-main.typ");
-  expect(ordnerName("/home/x/a.typ")).toBe("home-x-a.typ");
-  // keine der unter Windows verbotenen Zeichen bleiben übrig
-  expect(ordnerName('C:/a?b*c"d<e>f|g.typ')).not.toMatch(/[\\/:*?"<>|]/);
+test("nummer liest die Zählung, naechsteNummer zählt weiter", () => {
+  expect(nummer("Version 3.typ")).toBe(3);
+  expect(nummer("Version 12.bib")).toBe(12);
+  expect(nummer("main.typ")).toBe(null);
+  expect(nummer("Version.typ")).toBe(null);
+
+  expect(naechsteNummer([])).toBe(1);
+  // die alten sind weggeräumt, die Zählung läuft trotzdem weiter
+  expect(naechsteNummer(["Version 8.typ", "Version 9.typ", "Version 10.typ"])).toBe(11);
+  expect(naechsteNummer(["quellen.bib"])).toBe(1);
 });
 
-test("zeitstempel ist sortierbar und ohne verbotene Zeichen", () => {
-  const frueh = zeitstempel(new Date(2026, 8, 15, 9, 5, 3));
-  const spaet = zeitstempel(new Date(2026, 8, 15, 14, 30, 0));
-  expect(frueh).toBe("2026-09-15_09-05-03");
-  expect(frueh < spaet).toBe(true);
-  expect(spaet).not.toMatch(/[\\/:*?"<>|]/);
+test("die Stände liegen im versteckten .v des Projektordners", () => {
+  // Trennzeichen des Pfades bleibt erhalten
+  expect(wurzel("D:\\Projekt")).toBe("D:\\Projekt\\.v");
+  expect(ordnerFuer("D:\\Projekt\\main.typ")).toBe("D:\\Projekt\\.v\\main.typ");
+  expect(ordnerFuer("/home/x/kapitel/eins.typ")).toBe("/home/x/kapitel/.v/eins.typ");
 });
 
 test("istTemplate erkennt Vorlagen an Ordner oder Name", () => {
