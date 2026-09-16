@@ -54,3 +54,18 @@ export function parseOutline(text: string): Heading[] {
   });
   return out;
 }
+
+/**
+ * Spalte, auf die die Vorschau tatsächlich springt.
+ *
+ * tinymist findet nur etwas, wenn die Spalte *innerhalb* eines gesetzten
+ * Textstücks liegt — auf dessen erstem Zeichen bleibt die Vorschau stumm
+ * stehen. Gemessen mit tinymist 0.15.8: `= Zwei` springt erst ab Spalte 3,
+ * `== Zweiter Abschnitt` erst ab 4, ein gewöhnliches `Text a` erst ab 1.
+ * Also hinter den Marker der Zeile und von dort eine Stelle weiter, höchstens
+ * bis zum Zeilenende.
+ */
+export function zielSpalte(zeile: string, spalte: number): number {
+  const marker = zeile.match(/^[ \t]*(?:=+|[-+]|\/|\d+\.)?[ \t]*/)![0].length;
+  return Math.min(Math.max(spalte, marker) + 1, zeile.length);
+}

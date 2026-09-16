@@ -28,7 +28,7 @@ import {
   istTemplate,
   type Tab,
 } from "./state";
-import { samePath, parseOutline, pruefeDateiname } from "./lib";
+import { samePath, parseOutline, pruefeDateiname, zielSpalte } from "./lib";
 import { letzteProjekte, merke, vergiss } from "./projekte";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -595,11 +595,9 @@ function renderOutline() {
       b.style.paddingLeft = `${4 + (h.level - 1) * 12}px`;
       b.onclick = () => {
         scrollToLine(view, h.line);
-        // Spalte 0 träfe den "="-Marker, auf den die Vorschau nicht springen
-        // kann — deshalb auf das Ende der Überschriftenzeile zielen.
         const doc = view.state.doc;
         const zeile = doc.line(Math.min(h.line + 1, doc.lines)).text;
-        panelScrollTo(t.path, h.line, zeile.length);
+        panelScrollTo(t.path, h.line, zielSpalte(zeile, 0));
       };
       return b;
     }),
@@ -811,9 +809,11 @@ const view = createEditor(el.editor, {
     clearTimeout(debounce);
     debounce = setTimeout(() => updateMemoryFiles({ [t.path]: t.content }), 120);
   },
-  onCursor: (line, character) => {
+  onCursor: (line, character, zeile) => {
     const t = activeTab();
-    if (t) panelScrollTo(t.path, line, character);
+    // Nicht die rohe Spalte: auf dem "="-Marker oder am Zeilenanfang findet
+    // die Vorschau nichts und bliebe stehen.
+    if (t) panelScrollTo(t.path, line, zielSpalte(zeile, character));
   },
   onSave: save,
   onPasteImage: pasteImage,
