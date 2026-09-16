@@ -307,6 +307,40 @@ main {
   align-self: center;
 }
 
+/* Zuletzt geöffnete Projekte: von hier kommt man ohne Dialog zurück in die
+   Arbeit der letzten Tage. */
+#letzte {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+#letzte:empty {
+  display: none;
+}
+
+.letzte-titel {
+  margin: 0 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#letzte button {
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#letzte button:hover {
+  background: var(--sel);
+}
+
 /* Bilder werden angesehen, nicht bearbeitet: karierter Grund macht
    Transparenz sichtbar, das Bild bleibt vollständig im Blick. */
 #bildansicht {
@@ -412,7 +446,8 @@ body[data-ziehen="1"] .frame {
 /* ---------- Schnellsuche ---------- */
 
 #palette,
-#frage {
+#frage,
+#hinweis {
   position: fixed;
   inset: 0;
   background: #0006;
@@ -422,8 +457,43 @@ body[data-ziehen="1"] .frame {
 }
 
 #palette[hidden],
-#frage[hidden] {
+#frage[hidden],
+#hinweis[hidden] {
   display: none;
+}
+
+/* ---------- Hinweise ---------- */
+
+.hinweis-box {
+  padding: 22px 24px 18px;
+  text-align: left;
+}
+
+#hinweis-titel {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#hinweis-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--fg-dim);
+  white-space: pre-line;
+}
+
+#hinweis-ok {
+  display: block;
+  margin: 18px 0 0 auto;
+  padding: 7px 16px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--bg);
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 #frage-input {

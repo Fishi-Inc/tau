@@ -1,42 +1,51 @@
 // Automatische Sicherungen: alle zehn Minuten eine Fassung je offener Datei,
 // fünf Stände werden behalten. Gesichert wird der Puffer, nicht die Platte —
 // gerade die ungespeicherten Änderungen sind ja die, die verloren gehen können.
-import { appLocalDataDir } from "@tauri-apps/api/path";
+//
+// Die Stände liegen beim Dokument selbst, in einem versteckten Ordner `.v`
+// des jeweiligen Projektordners, und heißen "Version 1", "Version 2" … —
+// so ist ohne Erklärung klar, was man vor sich hat.
+import { invoke } from "@tauri-apps/api/core";
 import { mkdir, writeTextFile, readDir, remove } from "@tauri-apps/plugin-fs";
+import { basename, dirname } from "./state";
 
 export const ABSTAND_MS = 10 * 60 * 1000;
 export const ANZAHL_STAENDE = 5;
 export const GROESSENGRENZE = 10 * 1024 * 1024; // 10 MB
 
-/** Voller Pfad → ein Ordnername, der auf jedem Dateisystem zulässig ist. */
-export function ordnerName(pfad: string): string {
-  return pfad.replace(/[\\/:*?"<>|]/g, "-").replace(/^-+/, "");
-}
+/** Trennzeichen des Pfades beibehalten, damit Pfade nativ bleiben. */
+const sep = (p: string) => (p.includes("\\") ? "\\" : "/");
 
-/** Sortierbarer Zeitstempel: 2026-09-15_14-30-00 */
-export function zeitstempel(d = new Date()): string {
-  const z = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}` +
-    `_${z(d.getHours())}-${z(d.getMinutes())}-${z(d.getSeconds())}`
-  );
+/** Nummer aus "Version 3.typ" — null, wenn der Name keine Sicherung ist. */
+export function nummer(name: string): number | null {
+  const m = name.match(/^Version (\d+)\./);
+  return m ? Number(m[1]) : null;
 }
 
 /**
  * Welche Stände müssen weg, damit höchstens `max` übrig bleiben?
- * Die Namen beginnen mit dem Zeitstempel, alphabetisch sortiert ist also
- * zugleich chronologisch — die ältesten stehen vorn.
+ * Die kleinste Nummer ist die älteste. Verglichen wird als Zahl, sonst käme
+ * "Version 10" vor "Version 9".
  */
 export function veraltete(dateien: string[], max = ANZAHL_STAENDE): string[] {
-  const sortiert = [...dateien].sort();
-  return sortiert.slice(0, Math.max(0, sortiert.length - max));
+  const staende = dateien
+    .map((name) => ({ name, v: nummer(name) }))
+    .filter((s): s is { name: string; v: number } => s.v !== null)
+    .sort((a, b) => a.v - b.v);
+  return staende.slice(0, Math.max(0, staende.length - max)).map((s) => s.name);
 }
 
-/** Basisordner aller Sicherungen. */
-export const wurzel = async () => `${await appLocalDataDir()}/versionen`;
+/** Die Zählung läuft weiter, auch wenn die alten Stände weggeräumt sind. */
+export function naechsteNummer(dateien: string[]): number {
+  return Math.max(0, ...dateien.map((n) => nummer(n) ?? 0)) + 1;
+}
+
+/** Der versteckte Sicherungsordner eines Projektordners. */
+export const wurzel = (ordner: string) => `${ordner}${sep(ordner)}.v`;
 
 /** Ordner, in dem die Stände einer bestimmten Datei liegen. */
-export const ordnerFuer = async (pfad: string) => `${await wurzel()}/${ordnerName(pfad)}`;
+export const ordnerFuer = (pfad: string) =>
+  `${wurzel(dirname(pfad))}${sep(pfad)}${basename(pfad)}`;
 
 /**
  * Einen Stand ablegen und die ältesten wegräumen.
@@ -45,15 +54,20 @@ export const ordnerFuer = async (pfad: string) => `${await wurzel()}/${ordnerNam
 export async function sichereStand(pfad: string, inhalt: string): Promise<boolean> {
   if (new TextEncoder().encode(inhalt).length > GROESSENGRENZE) return false;
 
-  const ordner = await ordnerFuer(pfad);
+  const ordner = ordnerFuer(pfad);
+  const s = sep(pfad);
   await mkdir(ordner, { recursive: true });
-
-  const endung = pfad.match(/\.[^.\\/]+$/)?.[0] ?? ".txt";
-  await writeTextFile(`${ordner}/${zeitstempel()}${endung}`, inhalt);
+  // Ein führender Punkt versteckt unter Windows nichts, das macht erst das
+  // Dateiattribut. Schlägt es fehl, ist das kein Grund, nicht zu sichern.
+  await invoke("verstecken", { pfad: wurzel(dirname(pfad)) }).catch(() => {});
 
   const vorhanden = (await readDir(ordner)).filter((e) => e.isFile).map((e) => e.name);
-  for (const alt of veraltete(vorhanden)) {
-    await remove(`${ordner}/${alt}`).catch(() => {});
+  const endung = pfad.match(/\.[^.\\/]+$/)?.[0] ?? ".txt";
+  const neu = `Version ${naechsteNummer(vorhanden)}${endung}`;
+  await writeTextFile(`${ordner}${s}${neu}`, inhalt);
+
+  for (const alt of veraltete([...vorhanden, neu])) {
+    await remove(`${ordner}${s}${alt}`).catch(() => {});
   }
   return true;
 }

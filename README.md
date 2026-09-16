@@ -37,7 +37,7 @@ werden muss. Strg+S schreibt nur auf die Platte.
 | Strg+W | Tab schließen |
 | Strg+Leertaste | Vervollständigung (Symbole, Funktionen, Mathe) |
 | Strg+N | neue Datei anlegen (ohne Endung wird `.typ` ergänzt) |
-| Strg+Shift+P | Befehle: Datei anlegen, Literaturdatei, Bilder aufnehmen, Ordner öffnen … |
+| Strg+Shift+P | Befehle: Datei anlegen, Literaturdatei, Bilder aufnehmen, Projekt öffnen … |
 | Mausrad über der Tab-Leiste | rollt sie waagerecht, wenn viele Tabs offen sind |
 | Klick in die Vorschau | springt an die passende Stelle im Quelltext |
 | Strg+V mit Bild | legt die Datei unter `assets/` ab und fügt `#image(...)` ein |
@@ -116,7 +116,17 @@ Die Stände liegen unter `%LOCALAPPDATA%\com.loris.tau\versionen\<datei>\` mit
 dem Zeitstempel als Namen. Der Knopf **Versionen** in der Fußzeile öffnet den
 Ordner der aktuellen Datei.
 
-Der zuletzt geöffnete Ordner kommt beim nächsten Start von selbst wieder.
+## Projekte
+
+Ein Projekt ist der Ordner, in dem das Dokument liegt — **Projekt** in der
+Seitenleiste fragt danach, alles Weitere (neue Dateien, `assets/`, die Wurzel
+für tinymist) spielt sich darin ab.
+
+Das zuletzt geöffnete Projekt kommt beim nächsten Start von selbst wieder. Die
+letzten zehn stehen im Startbildschirm und unter *Zuletzt geöffnete Projekte*
+in der Befehlspalette; ein Projekt, das es nicht mehr gibt, fällt beim Öffnen
+aus der Liste.
+
 Zeilenenden bleiben erhalten: eine Datei mit CRLF wird auch wieder mit CRLF
 geschrieben.
 
