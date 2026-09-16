@@ -1,0 +1,494 @@
+:root {
+  --bg: #ffffff;
+  --bg-side: #f7f7f6;
+  --fg: #1f1f22;
+  --fg-dim: #75757c;
+  --line: #e3e3e0;
+  --accent: #4a6fa5;
+  --active-line: #00000006;
+  --sel: #00000010;
+  --w-left: 230px;
+  --w-right: 45%;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1b1d;
+    --bg-side: #171719;
+    --fg: #dcdcdd;
+    --fg-dim: #85858c;
+    --line: #2c2c30;
+    --accent: #7d9fd1;
+    --active-line: #ffffff08;
+    --sel: #ffffff14;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+#app {
+  display: grid;
+  grid-template-columns: var(--w-left) 5px 1fr 5px var(--w-right);
+  height: 100vh;
+}
+
+/* ---------- Seitenleiste ---------- */
+
+#sidebar {
+  background: var(--bg-side);
+  border-right: 1px solid var(--line);
+  display: grid;
+  grid-template-rows: auto 1fr auto minmax(0, 0.6fr);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.side-head {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.side-head button {
+  flex: 1;
+  padding: 7px 4px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.side-head button:hover {
+  background: var(--sel);
+}
+
+.side-split {
+  padding: 8px 12px 5px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  border-top: 1px solid var(--line);
+}
+
+.side-scroll {
+  overflow: auto;
+  padding: 8px 6px 12px;
+  font-size: 13px;
+}
+
+#tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 11px;
+}
+
+#tree > ul {
+  padding-left: 2px;
+}
+
+#tree summary {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: var(--fg-dim);
+  user-select: none;
+}
+
+#tree summary:hover {
+  background: var(--sel);
+}
+
+#tree .file {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 2px 4px;
+  font: inherit;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#tree .file:hover {
+  background: var(--sel);
+}
+
+#tree .file[data-current="1"] {
+  background: var(--sel);
+  color: var(--accent);
+}
+
+#outline button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg-dim);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#outline button:hover {
+  background: var(--sel);
+  color: var(--fg);
+}
+
+/* ---------- Mitte ---------- */
+
+main {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#tabs {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-side);
+  /* Bei vielen Tabs wird gerollt (auch mit dem Mausrad, siehe main.ts). Die
+     Leiste bleibt dünn und zeigt nur, dass es weitergeht. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+#tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+#tabs::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 2px;
+}
+
+#tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Tabs behalten ihre Breite, statt sich bei Platzmangel zu quetschen. */
+.tab {
+  flex: 0 0 auto;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px 8px 14px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--line);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[data-active="1"] {
+  color: var(--fg);
+  background: var(--bg);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.tab .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+}
+
+.tab[data-dirty="1"] .dot {
+  opacity: 1;
+}
+
+/* Tabs, die die Vorschau nicht übernehmen (Vorlagen, Bilder) */
+.tab[data-still="1"] {
+  font-style: italic;
+}
+
+.tab[data-still="1"][data-active="1"] {
+  box-shadow: inset 0 -2px 0 var(--fg-dim);
+}
+
+.tab .close {
+  padding: 0 3px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--fg-dim);
+  border-radius: 3px;
+}
+
+.tab .close:hover {
+  background: var(--sel);
+  color: var(--fg);
+}
+
+#editor {
+  overflow: hidden;
+  min-height: 0;
+}
+
+#editor[hidden],
+#bildansicht[hidden],
+#leer[hidden] {
+  display: none;
+}
+
+/* Ohne offene Datei gibt es nichts zu tippen — statt eines leeren Editors
+   steht hier, wie man eine bekommt. */
+#leer {
+  display: grid;
+  place-content: center;
+  gap: 18px;
+  min-height: 0;
+  color: var(--fg-dim);
+  user-select: none;
+}
+
+#leer p {
+  margin: 0;
+  font-size: 15px;
+  text-align: center;
+}
+
+#leer dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 7px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+
+#leer dt {
+  justify-self: end;
+  padding: 2px 7px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+#leer dd {
+  margin: 0;
+  align-self: center;
+}
+
+/* Bilder werden angesehen, nicht bearbeitet: karierter Grund macht
+   Transparenz sichtbar, das Bild bleibt vollständig im Blick. */
+#bildansicht {
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  min-height: 0;
+  padding: 20px;
+  background:
+    conic-gradient(from 90deg at 1px 1px, transparent 25%, var(--line) 0) 0 0 / 16px 16px;
+}
+
+#bild {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 2px 14px #00000030;
+}
+
+#status {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 12px;
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  border-top: 1px solid var(--line);
+  background: var(--bg-side);
+}
+
+/* ---------- Vorschau ---------- */
+
+#preview {
+  position: relative;
+  background: var(--bg-side);
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+
+/* Beim Wechsel liegen zwei Rahmen übereinander; der neue wird erst sichtbar,
+   wenn er etwas anzuzeigen hat, und löst den alten dann ab. */
+.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  /* Ein Rahmen, der noch nichts gemalt hat, ist durchsichtig — ohne diese
+     Fläche blitzt beim Wechsel der dunkle Untergrund durch. Papierfarbe, weil
+     das gesetzte Dokument ohnehin fast die ganze Fläche einnimmt. */
+  background: #fff;
+}
+
+.frame[data-sichtbar="1"] {
+  opacity: 1;
+}
+
+#preview-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--fg-dim);
+  pointer-events: none;
+}
+
+#preview[data-live="1"] #preview-empty {
+  display: none;
+}
+
+/* ---------- Ziehgriffe ---------- */
+
+.drag {
+  position: relative;
+  cursor: col-resize;
+  background: var(--line);
+}
+
+/* Der sichtbare Strich bleibt schmal, die Trefferfläche wird beidseitig
+   breiter — sonst ist der Griff kaum zu erwischen. */
+.drag::after {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.drag:hover {
+  background: var(--accent);
+}
+
+/* Während des Ziehens: der Rahmen der Vorschau darf die Maus nicht abfangen,
+   und nichts soll sich dabei markieren. */
+body[data-ziehen="1"] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body[data-ziehen="1"] .frame {
+  pointer-events: none;
+}
+
+/* ---------- Schnellsuche ---------- */
+
+#palette,
+#frage {
+  position: fixed;
+  inset: 0;
+  background: #0006;
+  display: grid;
+  place-items: start center;
+  padding-top: 14vh;
+}
+
+#palette[hidden],
+#frage[hidden] {
+  display: none;
+}
+
+#frage-input {
+  width: 100%;
+  padding: 13px 16px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+#frage-hinweis {
+  padding: 0 16px 11px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+#frage-hinweis[data-fehler="1"] {
+  color: #d9736a;
+}
+
+.palette-box {
+  width: min(560px, 80vw);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 16px 44px #00000040;
+  overflow: hidden;
+}
+
+#palette-input {
+  width: 100%;
+  padding: 13px 16px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  outline: none;
+}
+
+#palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 5px;
+  max-height: 45vh;
+  overflow: auto;
+}
+
+#palette-list li {
+  padding: 7px 11px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#palette-list li .path {
+  color: var(--fg-dim);
+  font-size: 11.5px;
+  margin-left: 8px;
+}
+
+#palette-list li[data-sel="1"] {
+  background: var(--sel);
+}

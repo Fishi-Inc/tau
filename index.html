@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tau</title>
+  </head>
+
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <div class="side-head">
+          <button id="open-folder" title="Ordner öffnen">Ordner</button>
+          <button id="new-file" title="Neue Datei anlegen (.typ, .bib …)">Neu</button>
+          <button id="add-asset" title="Bilder in den Ordner assets/ aufnehmen">Bild</button>
+        </div>
+        <div id="tree" class="side-scroll"></div>
+        <div class="side-split">Gliederung</div>
+        <div id="outline" class="side-scroll"></div>
+      </aside>
+
+      <div class="drag" data-target="left"></div>
+
+      <main>
+        <div id="tabs"></div>
+        <div id="editor"></div>
+        <div id="bildansicht" hidden><img id="bild" alt="" /></div>
+        <div id="leer" hidden>
+          <p>Keine Datei geöffnet</p>
+          <dl>
+            <dt>Strg+P</dt><dd>Datei öffnen</dd>
+            <dt>Strg+N</dt><dd>Datei erstellen</dd>
+            <dt>Strg+Shift+P</dt><dd>alle Befehle</dd>
+          </dl>
+        </div>
+        <div id="status"></div>
+      </main>
+
+      <div class="drag" data-target="right"></div>
+
+      <section id="preview">
+        <!-- Die Rahmen entstehen zur Laufzeit: beim Wechsel liegt der neue
+             unsichtbar über dem alten und löst ihn erst ab, wenn er etwas
+             anzuzeigen hat. Sonst blitzt dazwischen Leere auf. -->
+        <div id="preview-empty">Keine Vorschau</div>
+      </section>
+    </div>
+
+    <div id="palette" hidden>
+      <div class="palette-box">
+        <input id="palette-input" placeholder="Datei suchen…" autocomplete="off" spellcheck="false" />
+        <ul id="palette-list"></ul>
+      </div>
+    </div>
+
+    <div id="frage" hidden>
+      <div class="palette-box">
+        <input id="frage-input" autocomplete="off" spellcheck="false" />
+        <div id="frage-hinweis"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
